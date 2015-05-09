@@ -20,6 +20,12 @@ namespace Microsoft.Samples.Kinect.KinectFusionExplorer
     using Microsoft.Kinect.Toolkit;
     using Microsoft.Kinect.Toolkit.Fusion;
 
+    using System.Net;
+    using System.Web;
+    using System.Collections.Specialized;
+    using System.Web.UI.WebControls;
+    using System.Web.Script.Serialization;
+
     /// <summary>
     /// A struct containing depth image pixels and frame timestamp
     /// </summary>
@@ -29,6 +35,11 @@ namespace Microsoft.Samples.Kinect.KinectFusionExplorer
         public long FrameTimestamp;
     }
 
+    public class JsonObject
+    {
+        public string Result { get; set; }
+        public string Message { get; set; }
+    } 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
@@ -299,12 +310,16 @@ namespace Microsoft.Samples.Kinect.KinectFusionExplorer
 
         #endregion
 
+        private string UserId;
+        private string defaultsavepath;
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
         /// </summary>
         public MainWindow()
         {
             this.InitializeComponent();
+            UserId = null;
+            defaultsavepath = @"C:\MeshedReconstruction.obj";
         }
 
         /// <summary>
@@ -315,7 +330,7 @@ namespace Microsoft.Samples.Kinect.KinectFusionExplorer
         {
             this.Dispose(false);
         }
-        
+
         /// <summary>
         /// Property change event
         /// </summary>
@@ -785,7 +800,7 @@ namespace Microsoft.Samples.Kinect.KinectFusionExplorer
                 var vertex = vertices[i];
 
                 string vertexString = "v " + vertex.X.ToString(CultureInfo.CurrentCulture) + " ";
-                
+
                 if (flipYZ)
                 {
                     vertexString += (-vertex.Y).ToString(CultureInfo.CurrentCulture) + " " + (-vertex.Z).ToString(CultureInfo.CurrentCulture);
@@ -804,7 +819,7 @@ namespace Microsoft.Samples.Kinect.KinectFusionExplorer
                 var normal = normals[i];
 
                 string normalString = "vn " + normal.X.ToString(CultureInfo.CurrentCulture) + " ";
-                
+
                 if (flipYZ)
                 {
                     normalString += (-normal.Y).ToString(CultureInfo.CurrentCulture) + " " + (-normal.Z).ToString(CultureInfo.CurrentCulture);
@@ -1222,9 +1237,9 @@ namespace Microsoft.Samples.Kinect.KinectFusionExplorer
             alignDeltasFloatFrame.CopyPixelDataTo(this.deltaFromReferenceFrameFloatPixels);
 
             Parallel.For(
-            0, 
-            alignDeltasFloatFrame.Height, 
-            y => 
+            0,
+            alignDeltasFloatFrame.Height,
+            y =>
             {
                 int index = y * alignDeltasFloatFrame.Width;
                 for (int x = 0; x < alignDeltasFloatFrame.Width; ++x, ++index)
@@ -1356,7 +1371,7 @@ namespace Microsoft.Samples.Kinect.KinectFusionExplorer
                         float minDist = (this.minDepthClip < this.maxDepthClip) ? this.minDepthClip : this.maxDepthClip;
                         worldToVolumeTransform.M43 -= minDist * this.voxelsPerMeter;
 
-                        this.volume.ResetReconstruction(this.worldToCameraTransform, worldToVolumeTransform); 
+                        this.volume.ResetReconstruction(this.worldToCameraTransform, worldToVolumeTransform);
                     }
                     else
                     {
@@ -1503,7 +1518,6 @@ namespace Microsoft.Samples.Kinect.KinectFusionExplorer
                     dialog.FileName = "MeshedReconstruction.obj";
                     dialog.Filter = "OBJ Mesh Files|*.obj|All Files|*.*";
                 }
-
                 if (true == dialog.ShowDialog())
                 {
                     if (true == this.stlFormat.IsChecked)
@@ -1556,6 +1570,152 @@ namespace Microsoft.Samples.Kinect.KinectFusionExplorer
         {
             this.RecreateReconstruction();
         }
+        private void CreateMeshDirect()
+        {
+            if (null == this.volume)
+            {
+                this.ShowStatusMessage(Properties.Resources.MeshNullVolume);
+                return;
+            }
+
+            this.savingMesh = true;
+
+            // Mark the start time of saving mesh
+            DateTime begining = DateTime.Now;
+
+            try
+            {
+                this.ShowStatusMessage(Properties.Resources.SavingMesh);
+
+                Mesh mesh = this.volume.CalculateMesh(1);
+
+                Win32.SaveFileDialog dialog = new Win32.SaveFileDialog();
+
+                //临时文件默认保存路径
+                dialog.FileName = defaultsavepath;
+                dialog.Filter = "OBJ Mesh Files|*.obj|All Files|*.*";
+                using (StreamWriter writer = new StreamWriter(dialog.FileName))
+                {
+                            SaveAsciiObjMesh(mesh, writer);
+                }
+
+                    //this.ShowStatusMessage(Properties.Resources.MeshSaved);
+            }
+            catch (ArgumentException)
+            {
+                this.ShowStatusMessage(Properties.Resources.ErrorSaveMesh);
+            }
+            catch (InvalidOperationException)
+            {
+                this.ShowStatusMessage(Properties.Resources.ErrorSaveMesh);
+            }
+            catch (IOException)
+            {
+                this.ShowStatusMessage(Properties.Resources.ErrorSaveMesh);
+            }
+
+            // Update timestamp of last frame to avoid auto reset reconstruction
+            this.lastFrameTimestamp += (long)(DateTime.Now - begining).TotalMilliseconds;
+
+            this.savingMesh = false;
+        }
+        public static void HttpUploadFile(string url, string file, string paramName, string contentType, string file2, string paramName2, string contentType2, NameValueCollection nvc)
+        {
+            string boundary = "---------------------------" + DateTime.Now.Ticks.ToString("x");
+            byte[] boundarybytes = System.Text.Encoding.ASCII.GetBytes("\r\n--" + boundary + "\r\n");
+
+            HttpWebRequest wr = (HttpWebRequest)WebRequest.Create(url);
+            wr.ContentType = "multipart/form-data; boundary=" + boundary;
+            wr.Method = "POST";
+            wr.KeepAlive = true;
+            wr.Credentials = System.Net.CredentialCache.DefaultCredentials;
+
+            Stream rs = wr.GetRequestStream();
+
+            string formdataTemplate = "Content-Disposition: form-data; name=\"{0}\"\r\n\r\n{1}";
+            foreach (string key in nvc.Keys)
+            {
+                rs.Write(boundarybytes, 0, boundarybytes.Length);
+                string formitem = string.Format(formdataTemplate, key, nvc[key]);
+                byte[] formitembytes = System.Text.Encoding.UTF8.GetBytes(formitem);
+                rs.Write(formitembytes, 0, formitembytes.Length);
+            }
+            rs.Write(boundarybytes, 0, boundarybytes.Length);
+
+            string headerTemplate = "Content-Disposition: form-data; name=\"{0}\"; filename=\"{1}\"\r\nContent-Type: {2}\r\n\r\n";
+            string header = string.Format(headerTemplate, paramName, file, contentType);
+            byte[] headerbytes = System.Text.Encoding.UTF8.GetBytes(header);
+            rs.Write(headerbytes, 0, headerbytes.Length);
+
+            FileStream fileStream = new FileStream(file, FileMode.Open, FileAccess.Read);
+            byte[] buffer = new byte[4096];
+            int bytesRead = 0;
+            while ((bytesRead = fileStream.Read(buffer, 0, buffer.Length)) != 0)
+            {
+                rs.Write(buffer, 0, bytesRead);
+            }
+            fileStream.Close();
+            rs.Write(boundarybytes, 0, boundarybytes.Length);
+
+            string headerTemplate2 = "Content-Disposition: form-data; name=\"{0}\"; filename=\"{1}\"\r\nContent-Type: {2}\r\n\r\n";
+            string header2 = string.Format(headerTemplate2, paramName2, file2, contentType2);
+            byte[] headerbytes2 = System.Text.Encoding.UTF8.GetBytes(header2);
+            rs.Write(headerbytes2, 0, headerbytes2.Length);
+
+            FileStream fileStream2 = new FileStream(file2, FileMode.Open, FileAccess.Read);
+            byte[] buffer2 = new byte[4096];
+            int bytesRead2 = 0;
+            while ((bytesRead2 = fileStream2.Read(buffer2, 0, buffer2.Length)) != 0)
+            {
+                rs.Write(buffer2, 0, bytesRead2);
+            }
+            fileStream2.Close();
+
+            byte[] trailer = System.Text.Encoding.ASCII.GetBytes("\r\n--" + boundary + "--\r\n");
+            rs.Write(trailer, 0, trailer.Length);
+            rs.Close();
+
+            WebResponse wresp = null;
+            try
+            {
+                wresp = wr.GetResponse();
+                Stream stream2 = wresp.GetResponseStream();
+                StreamReader reader2 = new StreamReader(stream2);
+                string rp = reader2.ReadToEnd();
+
+                var serializer = new JavaScriptSerializer();
+                var ret = serializer.Deserialize<JsonObject>(rp);
+                string result = ret.Result;
+                string message = ret.Message;
+                if (result == @"true")
+                {
+                    string outputTemplate="File was successfully uploaded, File ID is {0}";
+                    string outputMessage=string.Format(outputTemplate,message);
+                    MessageBox.Show(outputMessage);
+                }
+                else if (result == @"false")
+                {
+                    string outputTemplate = "Something Wrong: {0}";
+                    string outputMessage = string.Format(outputTemplate, message);
+                    MessageBox.Show(outputMessage);
+                }else
+                {
+                    MessageBox.Show(@"网络连接失败");
+                }
+            }
+            catch (Exception ex)
+            {
+                if (wresp != null)
+                {
+                    wresp.Close();
+                    wresp = null;
+                }
+            }
+            finally
+            {
+                wr = null;
+            }
+        }
 
         /// <summary>
         /// Show exception info on status bar
@@ -1570,20 +1730,137 @@ namespace Microsoft.Samples.Kinect.KinectFusionExplorer
             }));
         }
 
-        private void HideLoginView()
+        private void HideLoginView(string username)
         {
             LoginButton.Visibility = Visibility.Hidden;
+            RegisterButton.Visibility = Visibility.Hidden;
+            UserNameTextBox.Visibility = Visibility.Hidden;
+            PasswordTextBox.Visibility = Visibility.Hidden;
+            UserNameLabel.Content = username;
         }
 
         private void ShowLoggedView()
         {
-            
+            UserNameLabel.Visibility = Visibility.Visible;
+            WelcomeLabel.Visibility = Visibility.Visible;
+            ModelNameLabel.Visibility = Visibility.Visible;
+            ModelNameBox.Visibility = Visibility.Visible;
+            DescriptionBox.Visibility = Visibility.Visible;
+            DescriptionLabel.Visibility = Visibility.Visible;
+            UploadButton.Visibility = Visibility.Visible;
+            CoverImageChooseButton.Visibility = Visibility.Visible;
+            CoverImagePathBox.Visibility = Visibility.Visible;
+        }
+
+        private bool LoggedIn()
+        {
+            //TODO 登录操作
+            //need to change URL
+            string address = "http://42.159.97.54/api/login.php?email=" + HttpUtility.UrlEncode(UserNameTextBox.Text) + "&password=" + HttpUtility.UrlEncode(PasswordTextBox.Password);
+            HttpWebRequest req = (HttpWebRequest)HttpWebRequest.Create(address);
+            req.Method = "GET";
+            HttpWebResponse wr = null;
+            try
+            {
+                wr = (HttpWebResponse) req.GetResponse();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("没有连接到服务器");
+            }
+            if (wr != null)
+            {
+                using (StreamReader sr = new StreamReader(wr.GetResponseStream()))
+                {
+                    string rp = sr.ReadToEnd();
+                    if (rp.Equals(@"false"))
+                    {
+                        MessageBox.Show(@"登录失败");
+                        return false;
+                    }
+                    else
+                    {
+                        UserId = rp;
+                    }
+
+                }
+            }
+            else
+            {
+                MessageBox.Show(@"网络连接失败");
+                return false;
+            }
+            return true;
         }
 
         private void LoginButton_Click(object sender, RoutedEventArgs e)
         {
-            HideLoginView();
-            ShowLoggedView();
+            if (LoggedIn())
+            {
+                HideLoginView(UserNameTextBox.Text);
+                ShowLoggedView();
+            }
+        }
+
+        private void RegisterButton_Click(object sender, RoutedEventArgs e)
+        {
+            //TODO 打开注册网页
+            //need to change URL
+            System.Diagnostics.Process.Start("IEXPLORE.EXE", "http://42.159.97.54/signup.php");
+        }
+        /// <summary>
+        /// 上传当前模型
+        /// 默认目录为C:\MeshedReconstruction.obj，在构造函数中修改
+        /// 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void UploadButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!File.Exists(CoverImagePathBox.Text))
+            {
+                Console.WriteLine("封面文件不存在！");
+                return;
+            }
+            if (ModelNameBox.Text.Length == 0)
+            {
+                Console.WriteLine("模型名称不能为空！");
+                return;
+            }
+            NameValueCollection nvc = new NameValueCollection();
+            nvc.Add("uploader_id", UserId);
+            nvc.Add("title", ModelNameBox.Text);
+            nvc.Add("description", DescriptionBox.Text);
+            nvc.Add("submit", "立即上传模型");
+            CreateMeshDirect();
+            //need to change URL
+            HttpUploadFile("http://42.159.97.54/api/upload.php",
+            CoverImagePathBox.Text, "cover_image", "image/jpeg",defaultsavepath, "model_file", "application/x-tgif", nvc);
+            //defaultsavepath默认为E:\MeshedReconstruction.obj。可在构造函数中修改
+            //不确定两个文件同时上传能否成功
+
+            if(File.Exists(defaultsavepath))
+            {
+                File.Delete(defaultsavepath);
+            }
+        }
+
+        /// <summary>
+        /// Choose the cover image file
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void CoverImageChooseButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            var openFileDialog = new Microsoft.Win32.OpenFileDialog()
+            {
+                Filter = "PNG Files(*.png)|*.png|JPEG FILES(*.jpg)|*.jpg|GIF FILES(*.GIF)|*.GIF"
+            };
+            var result = openFileDialog.ShowDialog();
+            if (result == true)
+            {
+                CoverImagePathBox.Text = openFileDialog.FileName;
+            }
         }
     }
 

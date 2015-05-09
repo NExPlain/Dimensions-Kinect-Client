@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:l="clr-namespace:Microsoft.Samples.Kinect.KinectFusionExplorer"
         xmlns:tk="clr-namespace:Microsoft.Kinect.Toolkit;assembly=Microsoft.Kinect.Toolkit"
-        Title="Kinect Fusion Explorer" Width="983" Height="780" Loaded="WindowLoaded" Closing="WindowClosing" DataContext="{Binding RelativeSource={RelativeSource Self}}" ResizeMode="CanResize">
+        Title="Kinect Fusion Explorer" Width="989" Height="780" Loaded="WindowLoaded" Closing="WindowClosing" DataContext="{Binding RelativeSource={RelativeSource Self}}" ResizeMode="CanResize">
 
     <Window.Resources>
         <SolidColorBrush x:Key="MediumGreyBrush" Color="#ff6e6e6e"/>
@@ -217,7 +217,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        
+        <Border BorderBrush="{StaticResource KinectPurpleBrush}" BorderThickness="1" Grid.RowSpan="2" Height="445" HorizontalAlignment="Left" Margin="2,10,0,0" Name="border1" VerticalAlignment="Top" Width="171" />
         <DockPanel Margin="179,0,0,20">
             <Image DockPanel.Dock="Left" Margin="0 10 0 5" Stretch="Fill" Height="32" Width="81" Source="Images\Logo.png"/>
             <TextBlock DockPanel.Dock="Right" VerticalAlignment="Bottom" FontFamily="Segoe UI" FontSize="18" Foreground="{StaticResource MediumGreyBrush}">Kinect Fusion Explorer</TextBlock>
@@ -253,7 +253,6 @@
                     <Image Name="deltaFromReferenceImage"/>
                 </Viewbox>
             </Grid>
-            <Label Content="Label" Height="28" HorizontalAlignment="Left" Margin="62,22,0,0" Name="label1" VerticalAlignment="Top" />
         </Grid>
         
         <Grid Grid.Row="2" Height="245" VerticalAlignment="Top">
@@ -430,17 +429,21 @@
         </StatusBar>
         <Grid Height="471" HorizontalAlignment="Left" Name="stackPanel1" VerticalAlignment="Top" Width="173" Grid.RowSpan="2" OpacityMask="#FF0A0A0A"
               >
-            <TextBox Foreground="{StaticResource KinectPurpleBrush}" BorderBrush="{StaticResource KinectPurpleBrush}" Margin="20,137,22,308" FontSize="14" Name="UserNameTextBox">
-            </TextBox>
-            <PasswordBox BorderBrush="{StaticResource KinectPurpleBrush}" Foreground="{StaticResource KinectPurpleBrush}" Margin="20,180,22,265" DataContext="{Binding}" FontSize="14"
-                         Name="PasswordTextBox"/>
-            <Button Content="登录" Height="23" HorizontalAlignment="Left" Margin="6,232,0,0" Name="LoginButton" VerticalAlignment="Top" Width="75" Click="LoginButton_Click" />
-            <Button Content="注册" Height="23" HorizontalAlignment="Left" Margin="88,232,0,0" Name="RegisterButton" VerticalAlignment="Top" Width="75" />
             <Image Height="44" HorizontalAlignment="Right" Margin="0,7,-12,0" Name="image1" Stretch="Fill" VerticalAlignment="Top" Width="210" Source="/KinectFusionExplorer-WPF;component/Images/dimensions.png" />
             <Label Content="Welcome!" Height="28" HorizontalAlignment="Left" Margin="12,67,0,0" Name="WelcomeLabel" VerticalAlignment="Top" Visibility="Hidden"/>
-            <Label Content="Dimensions User" Height="28" HorizontalAlignment="Left" Margin="12,101,0,0" Name="UserNameLabel" VerticalAlignment="Top" Visibility="Hidden"/>
-            
-            
+            <Label Content="Dimensions User" Height="28" HorizontalAlignment="Left" Foreground="{StaticResource KinectPurpleBrush}"
+                   Margin="12,101,0,0" Name="UserNameLabel" VerticalAlignment="Top" Visibility="Hidden" FontSize="14" />
+            <TextBox Height="137" HorizontalAlignment="Left" Margin="12,233,0,0" Name="ModelNameBox" VerticalAlignment="Top" Width="148" Foreground="{StaticResource KinectPurpleBrush}" BorderBrush="{StaticResource KinectPurpleBrush}" Visibility="Hidden" />
+            <TextBox Height="29" HorizontalAlignment="Left" Margin="15,170,0,0" Name="DescriptionBox" VerticalAlignment="Top" Width="120" Foreground="{StaticResource KinectPurpleBrush}" BorderBrush="{StaticResource KinectPurpleBrush}" Visibility="Hidden" />
+            <Label Content="Model Name" Height="28" HorizontalAlignment="Left" Margin="15,138,0,0" Name="ModelNameLabel" VerticalAlignment="Top" Foreground="{StaticResource KinectPurpleBrush}" FontSize="12" Visibility="Hidden" />
+            <Label Content="Description" Height="28" HorizontalAlignment="Left" Margin="15,207,0,0" Name="DescriptionLabel" VerticalAlignment="Top" Width="81"  Foreground="{StaticResource KinectPurpleBrush}" FontSize="12" Visibility="Hidden" />
+            <Button Content="Upload" Height="23" HorizontalAlignment="Left" Margin="17,416,0,0" Name="UploadButton" VerticalAlignment="Top" Width="75" Click="UploadButton_Click" Visibility="Hidden" />
+            <TextBox Foreground="{StaticResource KinectPurpleBrush}" BorderBrush="{StaticResource KinectPurpleBrush}" Margin="17,109,22,336" FontSize="14" Name="UserNameTextBox"></TextBox>
+            <PasswordBox BorderBrush="{StaticResource KinectPurpleBrush}" Foreground="{StaticResource KinectPurpleBrush}" Margin="17,152,22,293" DataContext="{Binding}" FontSize="14" Name="PasswordTextBox" />
+            <Button Content="Login" Height="23" HorizontalAlignment="Left" Margin="3,204,0,0" Name="LoginButton" VerticalAlignment="Top" Width="75" Click="LoginButton_Click" />
+            <Button Content="Register" Height="23" HorizontalAlignment="Right" Margin="0,204,10,0" Name="RegisterButton" VerticalAlignment="Top" Width="75" Click="RegisterButton_Click" />
+            <TextBox Name ="CoverImagePathBox" HorizontalAlignment="Left" Height="23" Margin="13,375,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="83" BorderBrush="{StaticResource KinectPurpleBrush}" Foreground="{StaticResource KinectPurpleBrush}" Visibility="Hidden"/>
+            <Button Content="选封面.." HorizontalAlignment="Left" Margin="110,375,0,0" VerticalAlignment="Top" Width="53" Height="19" Name="CoverImageChooseButton" Click="CoverImageChooseButton_OnClick" Visibility="Hidden"/>
         </Grid>
     </Grid>
 </Window>
